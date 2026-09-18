@@ -1,0 +1,1379 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fruit Spin Casino Game</title>
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-database-compat.js"></script>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Arial, sans-serif;
+            user-select: none;
+        }
+
+        body {
+            background: #090114;
+            color: #fff;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 10px;
+            overflow-x: hidden;
+            position: relative;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background:
+                radial-gradient(ellipse 80% 50% at 20% 40%, rgba(142, 45, 226, 0.25) 0%, transparent 50%),
+                radial-gradient(ellipse 60% 40% at 80% 20%, rgba(236, 72, 153, 0.2) 0%, transparent 45%),
+                radial-gradient(ellipse 70% 50% at 50% 80%, rgba(245, 158, 11, 0.15) 0%, transparent 50%),
+                linear-gradient(180deg, #0a0118 0%, #1a0535 40%, #0d0220 100%);
+            z-index: -2;
+            animation: bgPulse 12s ease-in-out infinite alternate;
+        }
+
+        @keyframes bgPulse {
+            0% { filter: brightness(1) hue-rotate(0deg); }
+            100% { filter: brightness(1.15) hue-rotate(15deg); }
+        }
+
+        body::after {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background-image:
+                radial-gradient(2px 2px at 10% 20%, rgba(253, 224, 71, 0.8), transparent),
+                radial-gradient(2px 2px at 30% 70%, rgba(192, 132, 252, 0.7), transparent),
+                radial-gradient(1.5px 1.5px at 50% 30%, rgba(255, 255, 255, 0.6), transparent),
+                radial-gradient(2px 2px at 70% 80%, rgba(236, 72, 153, 0.7), transparent),
+                radial-gradient(1.5px 1.5px at 85% 15%, rgba(253, 224, 71, 0.6), transparent),
+                radial-gradient(2px 2px at 15% 85%, rgba(168, 85, 247, 0.6), transparent),
+                radial-gradient(1px 1px at 45% 55%, rgba(255, 255, 255, 0.5), transparent),
+                radial-gradient(2px 2px at 90% 50%, rgba(245, 158, 11, 0.5), transparent);
+            background-size: 200% 200%;
+            animation: particlesFloat 25s linear infinite;
+            z-index: -1;
+            pointer-events: none;
+            opacity: 0.7;
+        }
+
+        @keyframes particlesFloat {
+            0% { background-position: 0% 0%; }
+            100% { background-position: 100% 100%; }
+        }
+
+        .bg-orb {
+            position: fixed;
+            border-radius: 50%;
+            filter: blur(80px);
+            opacity: 0.35;
+            z-index: -1;
+            pointer-events: none;
+            animation: orbFloat 18s ease-in-out infinite alternate;
+        }
+        .bg-orb-1 { width: 320px; height: 320px; background: #8e2de2; top: -80px; left: -100px; }
+        .bg-orb-2 { width: 280px; height: 280px; background: #ec4899; bottom: -60px; right: -80px; animation-delay: -6s; }
+        .bg-orb-3 { width: 200px; height: 200px; background: #f59e0b; top: 40%; left: 60%; animation-delay: -12s; opacity: 0.2; }
+
+        @keyframes orbFloat {
+            0% { transform: translate(0, 0) scale(1); }
+            100% { transform: translate(40px, -30px) scale(1.1); }
+        }
+
+        .game-screen {
+            width: 100%;
+            max-width: 400px;
+            height: 720px;
+            background: linear-gradient(180deg, #1d0336 0%, #320857 50%, #150228 100%);
+            border: 4px solid #8e2de2;
+            border-radius: 25px;
+            box-shadow: 0 0 40px rgba(142, 45, 226, 0.6), 0 0 80px rgba(142, 45, 226, 0.25);
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 15px 12px;
+            overflow: hidden;
+            z-index: 1;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 10;
+        }
+
+        .user-id-badge {
+            font-size: 12px;
+            font-weight: bold;
+            color: #fde047;
+            background: rgba(0, 0, 0, 0.6);
+            border: 1.5px solid #eab308;
+            padding: 4px 10px;
+            border-radius: 12px;
+            box-shadow: 0 0 8px rgba(234, 179, 8, 0.4);
+        }
+
+        .header-center {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .round-info {
+            font-size: 15px;
+            font-weight: bold;
+            color: #d8b4fe;
+            text-shadow: 0 0 5px #a855f7;
+        }
+
+        .right-menu {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            position: absolute;
+            right: 12px;
+            top: 62px;
+            z-index: 10;
+        }
+
+        .icon-btn {
+            width: 36px;
+            height: 36px;
+            background: radial-gradient(circle, #b814a6, #5c0553);
+            border: 2px solid #ff77f8;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 18px;
+            cursor: pointer;
+        }
+
+        .trophy-badge {
+            position: absolute;
+            left: 12px;
+            top: 55px;
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid #eab308;
+            border-radius: 12px;
+            padding: 3px 8px;
+            font-size: 11px;
+            color: #fde047;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        /* ========== WHEEL AREA (updated) ========== */
+        .wheel-container {
+            position: relative;
+            width: min(280px, 100%);
+            aspect-ratio: 1;
+            margin: 28px auto 10px auto;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        /* Outer GREEN frame (চাকার বাইরের সবুজ ফ্রেম) */
+        .wheel-frame-green {
+            position: absolute;
+            width: calc(100% + 28px);
+            height: calc(100% + 28px);
+            border-radius: 50%;
+            border: 8px solid #16a34a;
+            box-shadow:
+                inset 0 0 12px #14532d,
+                0 0 18px rgba(22, 163, 74, 0.7),
+                0 0 35px rgba(22, 163, 74, 0.35);
+            background: radial-gradient(circle, #4ade80 0%, #15803d 60%, #14532d 100%);
+            z-index: 0;
+        }
+
+        /* Existing golden/orange frame (inner) */
+        .wheel-frame {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            border: 10px solid #f59e0b;
+            box-shadow: inset 0 0 15px #78350f, 0 0 20px #f59e0b;
+            background: radial-gradient(circle, #fef08a, #d97706);
+            z-index: 1;
+        }
+
+        .top-pointer {
+            position: absolute;
+            top: -20px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 0;
+            height: 0;
+            border-left: 22px solid transparent;
+            border-right: 22px solid transparent;
+            border-top: 40px solid #dc2626;
+            filter: drop-shadow(0 4px 8px rgba(0,0,0,0.9));
+            z-index: 10;
+        }
+
+        #wheelCanvas {
+            width: calc(100% - 20px);
+            height: calc(100% - 20px);
+            border-radius: 50%;
+            z-index: 2;
+            transition: transform 4.2s cubic-bezier(0.15, 0.85, 0.2, 1);
+        }
+
+        .center-circle {
+            position: absolute;
+            z-index: 4;
+            width: 55px;
+            height: 55px;
+            background: radial-gradient(circle, #4c1d95, #1e1b4b);
+            border: 4px solid #f59e0b;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            box-shadow: 0 0 15px #eab308;
+            font-weight: bold;
+            font-size: 14px;
+            color: #fde047;
+        }
+
+        /* ===== Wings on both sides of the wheel ===== */
+        .wheel-wing {
+            position: absolute;
+            top: 50%;
+            width: 52px;
+            height: 110px;
+            transform: translateY(-50%);
+            z-index: 0;
+            pointer-events: none;
+        }
+
+        .wheel-wing-left {
+            left: -48px;
+        }
+
+        .wheel-wing-right {
+            right: -48px;
+            transform: translateY(-50%) scaleX(-1);
+        }
+
+        /* Wing shape using layered elements */
+        .wheel-wing::before,
+        .wheel-wing::after {
+            content: '';
+            position: absolute;
+            background: linear-gradient(135deg, #fbbf24 0%, #d97706 40%, #92400e 100%);
+            box-shadow: 0 0 12px rgba(251, 191, 36, 0.55);
+        }
+
+        /* Upper wing feather */
+        .wheel-wing::before {
+            width: 48px;
+            height: 58px;
+            top: 0;
+            left: 0;
+            border-radius: 60% 10% 40% 70%;
+            transform: rotate(-18deg);
+            border: 2px solid #fef08a;
+        }
+
+        /* Lower wing feather */
+        .wheel-wing::after {
+            width: 42px;
+            height: 52px;
+            bottom: 4px;
+            left: 6px;
+            border-radius: 50% 15% 55% 65%;
+            transform: rotate(12deg);
+            border: 2px solid #fde047;
+            opacity: 0.95;
+        }
+
+        /* Extra decorative tip on wings */
+        .wing-tip {
+            position: absolute;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: radial-gradient(circle, #fef08a, #f59e0b);
+            border: 2px solid #fde047;
+            box-shadow: 0 0 10px #fbbf24;
+            z-index: 1;
+        }
+
+        .wheel-wing-left .wing-tip {
+            top: 42%;
+            left: -4px;
+        }
+
+        .wheel-wing-right .wing-tip {
+            top: 42%;
+            left: -4px;
+        }
+
+        /* History Strip */
+        .history-wrapper {
+            background: rgba(15, 3, 35, 0.8);
+            border: 2px solid #6b21a8;
+            border-radius: 20px;
+            padding: 6px 10px;
+            display: flex;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .new-badge {
+            background: linear-gradient(135deg, #ef4444, #b91c1c);
+            border: 1px solid #fca5a5;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 10px;
+            font-weight: bold;
+            margin-right: 8px;
+        }
+
+        .history-list {
+            display: flex;
+            gap: 6px;
+            overflow-x: auto;
+            width: 100%;
+        }
+
+        .history-item {
+            width: 28px;
+            height: 28px;
+            min-width: 28px;
+            border-radius: 50%;
+            background: #2e1065;
+            border: 1px solid #a855f7;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+        }
+
+        .repeat-btn-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 5px;
+        }
+
+        .timer-display {
+            font-size: 12px;
+            color: #facc15;
+            font-weight: bold;
+            background: rgba(0,0,0,0.5);
+            padding: 3px 10px;
+            border-radius: 10px;
+            border: 1px solid #eab308;
+        }
+
+        .repeat-btn {
+            background: linear-gradient(180deg, #ec4899, #be185d);
+            border: 2px solid #fbcfe8;
+            color: white;
+            padding: 6px 16px;
+            border-radius: 15px;
+            font-weight: bold;
+            font-size: 12px;
+            cursor: pointer;
+            box-shadow: 0 0 10px rgba(236, 72, 153, 0.5);
+        }
+
+        .betting-section {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+
+        .bet-box {
+            background: linear-gradient(180deg, #2e0854 0%, #180230 100%);
+            border: 2px solid #eab308;
+            border-radius: 15px;
+            padding: 8px 4px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            cursor: pointer;
+            box-shadow: 0 0 10px rgba(234, 179, 8, 0.2);
+        }
+
+        .bet-box:active { transform: scale(0.96); }
+
+        .top-bet-val, .bottom-bet-val {
+            font-size: 12px;
+            font-weight: bold;
+            color: #facc15;
+            height: 16px;
+        }
+
+        .item-display {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+            margin: 4px 0;
+        }
+
+        .icon-circle {
+            width: 42px;
+            height: 42px;
+            background: radial-gradient(circle, #6b21a8, #3b0764);
+            border: 2px solid #c084fc;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 22px;
+        }
+
+        .num-77-icon {
+            font-size: 20px;
+            font-weight: 900;
+            color: #facc15;
+            text-shadow: 0 0 5px #eab308;
+        }
+
+        .multiplier {
+            font-size: 18px;
+            font-weight: 900;
+            color: #f97316;
+            text-shadow: 1px 1px 0 #000;
+        }
+
+        .bottom-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .user-profile {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(0, 0, 0, 0.5);
+            padding: 4px 8px;
+            border-radius: 20px;
+            border: 1px solid #7e22ce;
+        }
+
+        .avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            border: 1px solid #facc15;
+            background: #4c1d95;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+        }
+
+        .user-balance {
+            display: flex;
+            flex-direction: column;
+            text-align: left;
+        }
+
+        .username { font-size: 10px; color: #c084fc; }
+
+        .balance-val {
+            font-size: 12px;
+            font-weight: bold;
+            color: #facc15;
+            display: flex;
+            align-items: center;
+            gap: 2px;
+        }
+
+        .chip-selector { display: flex; gap: 4px; }
+
+        .chip {
+            width: 38px;
+            height: 38px;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 9px;
+            font-weight: 900;
+            color: #fff;
+            border: 2px dashed #fff;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.5);
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        .chip.active {
+            transform: translateY(-4px) scale(1.1);
+            border-style: solid;
+            box-shadow: 0 0 10px #fff;
+        }
+
+        .chip-50 { background: radial-gradient(circle, #f97316, #c2410c); }
+        .chip-100 { background: radial-gradient(circle, #06b6d4, #0891b2); }
+        .chip-500 { background: radial-gradient(circle, #ec4899, #be185d); }
+        .chip-5k { background: radial-gradient(circle, #a855f7, #6b21a8); }
+        .chip-50k { background: radial-gradient(circle, #22c55e, #15803d); }
+
+        [hidden] { display: none !important; }
+
+        .admin-panel {
+            position: absolute;
+            inset: 8px;
+            z-index: 30;
+            overflow-y: auto;
+            padding: 14px;
+            border: 3px solid #8e2de2;
+            border-radius: 20px;
+            background: linear-gradient(180deg, #1d0336 0%, #320857 100%);
+            box-shadow: 0 0 30px rgba(142, 45, 226, 0.75);
+        }
+
+        .admin-panel-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+
+        .admin-panel-title { color: #fde047; font-size: 18px; }
+
+        .admin-close-btn {
+            border: 1px solid #fca5a5;
+            border-radius: 10px;
+            padding: 5px 9px;
+            background: #991b1b;
+            color: #fff;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .admin-note {
+            margin-bottom: 12px;
+            padding: 6px 8px;
+            border: 1px solid #eab308;
+            border-radius: 8px;
+            color: #fde047;
+            font-size: 10px;
+            text-align: center;
+        }
+
+        .admin-grid { display: grid; gap: 10px; }
+
+        .admin-card {
+            padding: 10px;
+            border: 1px solid #7e22ce;
+            border-radius: 12px;
+            background: rgba(0, 0, 0, 0.35);
+        }
+
+        .admin-card h2 {
+            margin-bottom: 8px;
+            padding-bottom: 5px;
+            border-bottom: 1px solid #6b21a8;
+            color: #d8b4fe;
+            font-size: 13px;
+        }
+
+        .admin-stat, .admin-player {
+            display: flex;
+            justify-content: space-between;
+            gap: 8px;
+            padding: 5px 0;
+            border-bottom: 1px dashed #6b21a8;
+            font-size: 11px;
+        }
+
+        .admin-stat:last-child, .admin-player:last-child { border-bottom: 0; }
+        .admin-amount { color: #facc15; font-weight: bold; }
+
+        .admin-result-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 6px;
+        }
+
+        .admin-result-btn, .admin-action-btn {
+            padding: 7px 5px;
+            border: 1px solid #fff;
+            border-radius: 9px;
+            color: #fff;
+            font-size: 11px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .admin-result-btn { background: #7e22ce; }
+        .admin-result-btn.active { outline: 2px solid #fde047; }
+        .admin-action-btn { width: 100%; margin-top: 7px; background: #15803d; }
+
+        .admin-form-row { margin-top: 7px; }
+        .admin-form-row label {
+            display: block;
+            margin-bottom: 3px;
+            color: #c084fc;
+            font-size: 10px;
+        }
+
+        .admin-form-row input {
+            width: 100%;
+            padding: 7px 8px;
+            border: 1px solid #a855f7;
+            border-radius: 8px;
+            background: rgba(0, 0, 0, 0.6);
+            color: #fff;
+        }
+
+        .password-modal {
+            position: absolute;
+            inset: 0;
+            z-index: 50;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            background: rgba(9, 1, 20, 0.86);
+        }
+
+        .password-box {
+            width: min(300px, 100%);
+            padding: 20px;
+            border: 2px solid #8e2de2;
+            border-radius: 18px;
+            background: linear-gradient(180deg, #2e0854, #150228);
+            box-shadow: 0 0 25px rgba(142, 45, 226, 0.65);
+            text-align: center;
+        }
+
+        .password-box h2 { margin-bottom: 8px; color: #fde047; font-size: 18px; }
+        .password-box p { margin-bottom: 12px; color: #d8b4fe; font-size: 12px; }
+
+        .password-input {
+            width: 100%;
+            padding: 11px;
+            border: 1px solid #c084fc;
+            border-radius: 10px;
+            outline: none;
+            background: rgba(0, 0, 0, 0.65);
+            color: #fff;
+            font-size: 18px;
+            letter-spacing: 4px;
+            text-align: center;
+        }
+
+        .password-error {
+            min-height: 18px;
+            margin-top: 7px;
+            color: #fca5a5;
+            font-size: 11px;
+        }
+
+        .password-actions {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            margin-top: 8px;
+        }
+
+        .password-actions button {
+            padding: 9px;
+            border-radius: 10px;
+            color: #fff;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .password-login-btn { border: 1px solid #86efac; background: #15803d; }
+        .password-cancel-btn { border: 1px solid #fca5a5; background: #991b1b; }
+    </style>
+</head>
+<body>
+
+    <div class="bg-orb bg-orb-1"></div>
+    <div class="bg-orb bg-orb-2"></div>
+    <div class="bg-orb bg-orb-3"></div>
+
+    <div class="game-screen">
+        <div class="header">
+            <div class="user-id-badge" id="playerIdDisplay">ID: Loading...</div>
+            <div class="header-center">
+                <div class="round-info" id="roundNum">Round: 3305</div>
+            </div>
+            <div></div>
+        </div>
+
+        <div class="right-menu">
+            <div class="icon-btn">👤</div>
+            <div class="icon-btn">❓</div>
+            <div class="icon-btn">📜</div>
+            <div class="icon-btn">🔊</div>
+        </div>
+
+        <div class="password-modal" id="adminPasswordModal" hidden>
+            <div class="password-box">
+                <h2>🔒 Admin Login</h2>
+                <p>Admin Panel খুলতে পাসওয়ার্ড দিন</p>
+                <input
+                    class="password-input"
+                    id="adminPasswordInput"
+                    type="password"
+                    inputmode="numeric"
+                    autocomplete="off"
+                    maxlength="20"
+                    placeholder="Password"
+                    onkeydown="handleAdminPasswordKey(event)"
+                >
+                <div class="password-error" id="adminPasswordError" aria-live="polite"></div>
+                <div class="password-actions">
+                    <button class="password-cancel-btn" onclick="cancelAdminLogin()">Cancel</button>
+                    <button class="password-login-btn" onclick="verifyAdminPassword()">Login</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="trophy-badge">🏆 03:41</div>
+
+        <!-- Spin Wheel Container (updated with green frame + wings) -->
+        <div class="wheel-container">
+            <!-- Outer GREEN frame -->
+            <div class="wheel-frame-green"></div>
+
+            <!-- Left Wing -->
+            <div class="wheel-wing wheel-wing-left">
+                <div class="wing-tip"></div>
+            </div>
+
+            <!-- Right Wing -->
+            <div class="wheel-wing wheel-wing-right">
+                <div class="wing-tip"></div>
+            </div>
+
+            <!-- Existing golden frame -->
+            <div class="wheel-frame">
+                <div class="top-pointer"></div>
+            </div>
+
+            <canvas id="wheelCanvas" width="300" height="300"></canvas>
+            <div class="center-circle" id="spinStatus">10s</div>
+        </div>
+
+        <div class="repeat-btn-container">
+            <div class="timer-display" id="timer" aria-live="polite">Next Spin: 10s</div>
+            <button class="repeat-btn" onclick="repeatLastBet()">Repeat</button>
+        </div>
+
+        <div class="history-wrapper">
+            <span class="new-badge">NEW</span>
+            <div class="history-list" id="historyList">
+                <div class="history-item">🍉</div>
+                <div class="history-item">🍇</div>
+                <div class="history-item">🍉</div>
+                <div class="history-item">77</div>
+                <div class="history-item">🍇</div>
+            </div>
+        </div>
+
+        <div class="betting-section">
+            <div class="bet-box" onclick="placeBet('watermelon')">
+                <div class="top-bet-val" id="top-watermelon">0</div>
+                <div class="item-display">
+                    <div class="icon-circle">🍉</div>
+                    <span class="multiplier">x2</span>
+                </div>
+                <div class="bottom-bet-val" id="bet-watermelon">0</div>
+            </div>
+
+            <div class="bet-box" onclick="placeBet('77')">
+                <div class="top-bet-val" id="top-77">0</div>
+                <div class="item-display">
+                    <div class="icon-circle">
+                        <span class="num-77-icon">77</span>
+                    </div>
+                    <span class="multiplier">x8</span>
+                </div>
+                <div class="bottom-bet-val" id="bet-77">0</div>
+            </div>
+
+            <div class="bet-box" onclick="placeBet('grape')">
+                <div class="top-bet-val" id="top-grape">0</div>
+                <div class="item-display">
+                    <div class="icon-circle">🍇</div>
+                    <span class="multiplier">x2</span>
+                </div>
+                <div class="bottom-bet-val" id="bet-grape">0</div>
+            </div>
+        </div>
+
+        <div class="bottom-bar">
+            <div class="user-profile">
+                <div class="avatar">👨‍💼</div>
+                <div class="user-balance">
+                    <span class="username" id="userNameLabel">User</span>
+                    <span class="balance-val">🪙 <span id="balance" aria-live="polite">1000</span></span>
+                </div>
+            </div>
+
+            <div class="chip-selector">
+                <div class="chip chip-50 active" onclick="selectChip(50, this)">50</div>
+                <div class="chip chip-100" onclick="selectChip(100, this)">100</div>
+                <div class="chip chip-500" onclick="selectChip(500, this)">500</div>
+                <div class="chip chip-5k" onclick="selectChip(5000, this)">5K</div>
+                <div class="chip chip-50k" onclick="selectChip(50000, this)">50K</div>
+            </div>
+        </div>
+
+        <div class="admin-panel" id="adminPanel" hidden>
+            <div class="admin-panel-header">
+                <h1 class="admin-panel-title">🎮 Admin Control Panel</h1>
+                <button class="admin-close-btn" onclick="closeAdminPanel()">Close</button>
+            </div>
+            <div class="admin-note">Firebase Realtime Database সংযুক্ত — সব প্লেয়ার একই টাইমার ও স্পিন দেখে</div>
+
+            <div class="admin-grid">
+                <section class="admin-card">
+                    <h2>📊 চলতি রাউন্ডের বাজি</h2>
+                    <div class="admin-stat"><span>🍉 তরমুজ (x2)</span><span class="admin-amount" id="adminWatermelon">0 🪙</span></div>
+                    <div class="admin-stat"><span>🎰 ৭৭ (x8)</span><span class="admin-amount" id="admin77">0 🪙</span></div>
+                    <div class="admin-stat"><span>🍇 আঙুর (x2)</span><span class="admin-amount" id="adminGrape">0 🪙</span></div>
+                </section>
+
+                <section class="admin-card">
+                    <h2>🎯 বিজয়ী ফলাফল নিয়ন্ত্রণ</h2>
+                    <div class="admin-result-grid">
+                        <button class="admin-result-btn active" data-result="auto" onclick="setForcedResult('auto')">🎲 অটো</button>
+                        <button class="admin-result-btn" data-result="watermelon" onclick="setForcedResult('watermelon')">🍉 তরমুজ</button>
+                        <button class="admin-result-btn" data-result="77" onclick="setForcedResult('77')">🎰 ৭৭</button>
+                        <button class="admin-result-btn" data-result="grape" onclick="setForcedResult('grape')">🍇 আঙুর</button>
+                    </div>
+                    <div class="admin-stat" style="margin-top:7px">
+                        <span>বর্তমান সেট</span><span id="adminResultStatus" class="admin-amount">🎲 অটো</span>
+                    </div>
+                </section>
+
+                <section class="admin-card">
+                    <h2>💰 কয়েন ট্রান্সফার</h2>
+                    <div class="admin-form-row">
+                        <label for="adminTargetId">প্লেয়ার ID</label>
+                        <input id="adminTargetId" type="text" placeholder="যেমন: ID:849201">
+                    </div>
+                    <div class="admin-form-row">
+                        <label for="adminCoinAmount">কয়েনের পরিমাণ</label>
+                        <input id="adminCoinAmount" type="number" min="1" step="1" placeholder="যেমন: 5000">
+                    </div>
+                    <button class="admin-action-btn" onclick="transferAdminCoins()">কয়েন যোগ করুন (+)</button>
+                </section>
+
+                <section class="admin-card">
+                    <h2>👥 অনলাইন প্লেয়ার (<span id="adminOnlineCount">0</span>)</h2>
+                    <div id="adminPlayerList"></div>
+                </section>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ========== FIREBASE CONFIG ==========
+        const firebaseConfig = {
+            apiKey: "AIzaSyAx8ecCzpAQLKoI9yaleCmupDY3514xEOA",
+            authDomain: "wheel-games-991ed.firebaseapp.com",
+            databaseURL: "https://wheel-games-991ed-default-rtdb.firebaseio.com",
+            projectId: "wheel-games-991ed",
+            storageBucket: "wheel-games-991ed.firebasestorage.app",
+            messagingSenderId: "471530683929",
+            appId: "1:471530683929:web:ad37a2452f6e0a4f713488",
+            measurementId: "G-KH30BGPN2P"
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+
+        // ========== DOM & STATE ==========
+        const canvas = document.getElementById('wheelCanvas');
+        const ctx = canvas.getContext('2d');
+        const balanceEl = document.getElementById('balance');
+        const historyList = document.getElementById('historyList');
+        const timerEl = document.getElementById('timer');
+        const spinStatusEl = document.getElementById('spinStatus');
+
+        const EMPTY_BETS = { watermelon: 0, '77': 0, grape: 0 };
+        const MULTIPLIERS = { watermelon: 2, '77': 8, grape: 2 };
+        const ADMIN_PASSWORD = '86954';
+        const SPIN_DURATION_MS = 4300;
+        const COUNTDOWN_SECONDS = 10;
+
+        function safeGet(key) {
+            try { return localStorage.getItem(key); } catch (e) { return null; }
+        }
+        function safeSet(key, value) {
+            try { localStorage.setItem(key, value); } catch (e) {}
+        }
+
+        let playerId = safeGet('casino_player_id');
+        if (!playerId) {
+            playerId = 'ID:' + Math.floor(100000 + Math.random() * 900000);
+            safeSet('casino_player_id', playerId);
+        }
+
+        document.getElementById('playerIdDisplay').innerText = playerId;
+        document.getElementById('userNameLabel').innerText = playerId;
+
+        let selectedChip = 50;
+        let isSpinning = false;
+        let currentRotation = 0;
+        let balance = 1000;
+        let bets = { ...EMPTY_BETS };
+        let lastBets = { ...EMPTY_BETS };
+        let forcedResult = 'auto';
+        let roundNumber = 3305;
+        let adminUnlocked = false;
+        let nextSpinAt = 0;
+        let lastProcessedSpinId = 0;
+        let localTimerInterval = null;
+
+        const playerRef = db.ref('players/' + playerId);
+        const gameRef = db.ref('game');
+        const playersRef = db.ref('players');
+
+        // ========== WHEEL (9 segments) ==========
+        const items = [
+            { label: '🍉', type: 'watermelon', color: '#0ea5e9' },
+            { label: '🍇', type: 'grape', color: '#581c87' },
+            { label: '🍉', type: 'watermelon', color: '#0ea5e9' },
+            { label: '🍇', type: 'grape', color: '#581c87' },
+            { label: '77', type: '77', color: '#d946ef' },
+            { label: '🍉', type: 'watermelon', color: '#0ea5e9' },
+            { label: '🍇', type: 'grape', color: '#581c87' },
+            { label: '🍉', type: 'watermelon', color: '#0ea5e9' },
+            { label: '🍇', type: 'grape', color: '#581c87' }
+        ];
+
+        const numSlices = items.length;
+        const sliceAngle = (2 * Math.PI) / numSlices;
+
+        function drawWheel() {
+            ctx.clearRect(0, 0, 300, 300);
+            for (let i = 0; i < numSlices; i++) {
+                const angle = i * sliceAngle;
+                ctx.beginPath();
+                ctx.fillStyle = items[i].color;
+                ctx.moveTo(150, 150);
+                ctx.arc(150, 150, 145, angle, angle + sliceAngle);
+                ctx.lineTo(150, 150);
+                ctx.fill();
+                ctx.lineWidth = 3;
+                ctx.strokeStyle = '#facc15';
+                ctx.stroke();
+
+                ctx.save();
+                ctx.translate(150, 150);
+                ctx.rotate(angle + sliceAngle / 2);
+                ctx.textAlign = "right";
+
+                if (items[i].type === '77') {
+                    ctx.font = "bold 40px Arial";
+                    ctx.fillStyle = "#facc15";
+                    ctx.fillText("77", 125, 14);
+                } else {
+                    ctx.font = "44px Arial";
+                    ctx.fillText(items[i].label, 125, 14);
+                }
+                ctx.restore();
+            }
+        }
+        drawWheel();
+
+        // ========== FIREBASE SYNC ==========
+        playerRef.once('value').then(snap => {
+            const data = snap.val();
+            if (data) {
+                balance = Number(data.balance) >= 0 ? Number(data.balance) : 1000;
+                bets = data.bets || { ...EMPTY_BETS };
+                lastBets = data.lastBets || { ...EMPTY_BETS };
+            } else {
+                balance = 1000;
+                playerRef.set({
+                    balance: 1000,
+                    bets: EMPTY_BETS,
+                    lastBets: EMPTY_BETS,
+                    online: true,
+                    lastSeen: Date.now()
+                });
+            }
+            balanceEl.innerText = balance;
+            syncBetDisplays();
+            setOnline(true);
+        });
+
+        playerRef.child('balance').on('value', snap => {
+            const val = snap.val();
+            if (val !== null && val !== undefined) {
+                balance = Number(val);
+                balanceEl.innerText = balance;
+                updateAdminPanel();
+            }
+        });
+
+        gameRef.on('value', snap => {
+            const data = snap.val() || {};
+            forcedResult = data.forcedResult || 'auto';
+            if (!['auto', 'watermelon', '77', 'grape'].includes(forcedResult)) forcedResult = 'auto';
+
+            if (data.round) {
+                roundNumber = data.round;
+                document.getElementById('roundNum').innerText = `Round: ${roundNumber}`;
+            }
+
+            if (data.nextSpinAt && data.nextSpinAt > 0) {
+                nextSpinAt = data.nextSpinAt;
+            } else if (!nextSpinAt) {
+                nextSpinAt = Date.now() + COUNTDOWN_SECONDS * 1000;
+                gameRef.update({ nextSpinAt: nextSpinAt, round: roundNumber || 3305 });
+            }
+
+            if (data.spinId && data.winningIndex !== undefined && data.spinId !== lastProcessedSpinId) {
+                if (!isSpinning) {
+                    startSharedSpin(data.winningIndex, data.spinId, data.resultType);
+                }
+            }
+
+            updateAdminPanel();
+        });
+
+        playersRef.on('value', snap => {
+            const all = snap.val() || {};
+            const listEl = document.getElementById('adminPlayerList');
+            let onlineCount = 0;
+            let html = '';
+            Object.keys(all).forEach(id => {
+                const p = all[id];
+                if (p && p.online) {
+                    onlineCount++;
+                    html += `<div class="admin-player"><span>${id}</span><span class="admin-amount">🪙 ${p.balance || 0}</span></div>`;
+                }
+            });
+            const countEl = document.getElementById('adminOnlineCount');
+            if (countEl) countEl.innerText = onlineCount;
+            if (listEl) listEl.innerHTML = html || '<div class="admin-player"><span>কেউ অনলাইন নেই</span></div>';
+        });
+
+        function setOnline(status) {
+            playerRef.update({
+                online: status,
+                lastSeen: Date.now()
+            });
+        }
+
+        function syncBetDisplays() {
+            document.getElementById('bet-watermelon').innerText = bets.watermelon || 0;
+            document.getElementById('bet-77').innerText = bets['77'] || 0;
+            document.getElementById('bet-grape').innerText = bets.grape || 0;
+            document.getElementById('top-watermelon').innerText = bets.watermelon || 0;
+            document.getElementById('top-77').innerText = bets['77'] || 0;
+            document.getElementById('top-grape').innerText = bets.grape || 0;
+            updateAdminPanel();
+        }
+
+        function updateBalanceDisplay() {
+            balanceEl.innerText = balance;
+            playerRef.update({ balance: balance });
+            updateAdminPanel();
+        }
+
+        const ADMIN_RESULT_LABELS = {
+            auto: '🎲 অটো',
+            watermelon: '🍉 তরমুজ',
+            '77': '🎰 ৭৭',
+            grape: '🍇 আঙুর'
+        };
+
+        function requestAdminAccess() {
+            if (adminUnlocked) {
+                toggleAdminPanel();
+                return;
+            }
+            const modal = document.getElementById('adminPasswordModal');
+            const passwordInput = document.getElementById('adminPasswordInput');
+            document.getElementById('adminPasswordError').innerText = '';
+            passwordInput.value = '';
+            modal.hidden = false;
+            setTimeout(() => passwordInput.focus(), 0);
+        }
+
+        function handleAdminPasswordKey(event) {
+            if (event.key === 'Enter') verifyAdminPassword();
+            if (event.key === 'Escape') cancelAdminLogin();
+        }
+
+        function verifyAdminPassword() {
+            const passwordInput = document.getElementById('adminPasswordInput');
+            const error = document.getElementById('adminPasswordError');
+            if (passwordInput.value === ADMIN_PASSWORD) {
+                adminUnlocked = true;
+                document.getElementById('adminPasswordModal').hidden = true;
+                toggleAdminPanel();
+            } else {
+                error.innerText = 'ভুল পাসওয়ার্ড। আবার চেষ্টা করুন।';
+                passwordInput.value = '';
+                passwordInput.focus();
+            }
+        }
+
+        function cancelAdminLogin() {
+            document.getElementById('adminPasswordModal').hidden = true;
+        }
+
+        function toggleAdminPanel() {
+            const panel = document.getElementById('adminPanel');
+            if (!adminUnlocked) return;
+            panel.hidden = !panel.hidden;
+            if (!panel.hidden) {
+                document.getElementById('adminTargetId').value = playerId;
+                updateAdminPanel();
+            }
+        }
+
+        function closeAdminPanel() {
+            adminUnlocked = false;
+            document.getElementById('adminPanel').hidden = true;
+            document.getElementById('adminPasswordModal').hidden = true;
+        }
+
+        function updateAdminPanel() {
+            const elW = document.getElementById('adminWatermelon');
+            const el77 = document.getElementById('admin77');
+            const elG = document.getElementById('adminGrape');
+            if (elW) elW.innerText = `${bets.watermelon || 0} 🪙`;
+            if (el77) el77.innerText = `${bets['77'] || 0} 🪙`;
+            if (elG) elG.innerText = `${bets.grape || 0} 🪙`;
+
+            const resultStatus = document.getElementById('adminResultStatus');
+            if (resultStatus) resultStatus.innerText = ADMIN_RESULT_LABELS[forcedResult] || ADMIN_RESULT_LABELS.auto;
+            document.querySelectorAll('.admin-result-btn').forEach(button => {
+                button.classList.toggle('active', button.dataset.result === forcedResult);
+            });
+        }
+
+        function setForcedResult(type) {
+            if (!Object.prototype.hasOwnProperty.call(ADMIN_RESULT_LABELS, type)) return;
+            forcedResult = type;
+            gameRef.update({ forcedResult: type });
+            updateAdminPanel();
+        }
+
+        function transferAdminCoins() {
+            const targetId = document.getElementById('adminTargetId').value.trim();
+            const coins = Number(document.getElementById('adminCoinAmount').value);
+
+            if (!targetId || !Number.isInteger(coins) || coins <= 0) {
+                alert('সঠিক ID এবং ধনাত্মক পূর্ণসংখ্যার কয়েনের পরিমাণ লিখুন!');
+                return;
+            }
+
+            const targetRef = db.ref('players/' + targetId);
+            targetRef.once('value').then(snap => {
+                if (!snap.exists()) {
+                    alert('এই ID-এর প্লেয়ার পাওয়া যায়নি!');
+                    return;
+                }
+                const currentBal = Number(snap.val().balance) || 0;
+                targetRef.update({ balance: currentBal + coins }).then(() => {
+                    document.getElementById('adminCoinAmount').value = '';
+                    alert(`${targetId} ID-তে ${coins} কয়েন যোগ হয়েছে!`);
+                });
+            });
+        }
+
+        function selectChip(val, el) {
+            selectedChip = val;
+            document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+            el.classList.add('active');
+        }
+
+        function placeBet(type) {
+            if (isSpinning) return;
+            const remaining = Math.ceil((nextSpinAt - Date.now()) / 1000);
+            if (remaining <= 1) return;
+            if (balance < selectedChip) {
+                alert("পর্যাপ্ত কয়েন নেই!");
+                return;
+            }
+            balance -= selectedChip;
+            bets[type] = (bets[type] || 0) + selectedChip;
+            updateBalanceDisplay();
+            syncBetDisplays();
+            playerRef.update({ balance, bets });
+        }
+
+        function repeatLastBet() {
+            if (isSpinning) return;
+            const remaining = Math.ceil((nextSpinAt - Date.now()) / 1000);
+            if (remaining <= 1) return;
+            const totalNeed = (lastBets.watermelon || 0) + (lastBets['77'] || 0) + (lastBets.grape || 0);
+            if (totalNeed === 0) return;
+            if (balance < totalNeed) {
+                alert("পর্যাপ্ত কয়েন নেই!");
+                return;
+            }
+            balance -= totalNeed;
+            bets.watermelon += lastBets.watermelon || 0;
+            bets['77'] += lastBets['77'] || 0;
+            bets.grape += lastBets.grape || 0;
+            updateBalanceDisplay();
+            syncBetDisplays();
+            playerRef.update({ balance, bets });
+        }
+
+        function getTargetRotation(winIndex) {
+            const degreesPerSlice = 360 / numSlices;
+            const centerOfSegment = winIndex * degreesPerSlice + (degreesPerSlice / 2);
+            const degreesToRotate = (360 - centerOfSegment + 270) % 360;
+            const extraSpins = 5 * 360;
+            return currentRotation + extraSpins + degreesToRotate - (currentRotation % 360);
+        }
+
+        function startSharedSpin(winningIndex, spinId, resultType) {
+            if (isSpinning) return;
+            isSpinning = true;
+            lastProcessedSpinId = spinId;
+            spinStatusEl.innerText = "SPIN";
+
+            const totalRotation = getTargetRotation(winningIndex);
+            currentRotation = totalRotation;
+            canvas.style.transform = `rotate(${totalRotation}deg)`;
+
+            setTimeout(() => {
+                isSpinning = false;
+                const result = items[winningIndex] || { label: '?', type: resultType || 'watermelon' };
+
+                const newItem = document.createElement('div');
+                newItem.className = 'history-item';
+                newItem.innerText = result.label;
+                historyList.prepend(newItem);
+                while (historyList.children.length > 12) {
+                    historyList.removeChild(historyList.lastElementChild);
+                }
+
+                const win = (bets[result.type] || 0) * MULTIPLIERS[result.type];
+                if (win > 0) {
+                    balance += win;
+                    updateBalanceDisplay();
+                }
+
+                lastBets = { ...bets };
+                bets = { ...EMPTY_BETS };
+                syncBetDisplays();
+
+                playerRef.update({
+                    balance: balance,
+                    bets: EMPTY_BETS,
+                    lastBets: lastBets
+                });
+
+                const newNext = Date.now() + COUNTDOWN_SECONDS * 1000;
+                gameRef.transaction(current => {
+                    if (!current) current = {};
+                    if (current.lastSettledSpinId === spinId) return;
+                    current.nextSpinAt = newNext;
+                    current.round = (current.round || roundNumber) + 1;
+                    current.lastSettledSpinId = spinId;
+                    current.spinning = false;
+                    return current;
+                });
+
+            }, SPIN_DURATION_MS);
+        }
+
+        function tryStartSpin() {
+            if (isSpinning) return;
+
+            gameRef.transaction(current => {
+                if (!current) current = {};
+                const now = Date.now();
+
+                if (current.spinning) return;
+                if (current.nextSpinAt && now < current.nextSpinAt - 200) return;
+
+                let winningIndex;
+                const fr = current.forcedResult || 'auto';
+                if (fr === 'auto') {
+                    winningIndex = Math.floor(Math.random() * numSlices);
+                } else {
+                    const matching = items
+                        .map((item, idx) => item.type === fr ? idx : -1)
+                        .filter(idx => idx !== -1);
+                    winningIndex = matching[Math.floor(Math.random() * matching.length)];
+                }
+
+                const spinId = now;
+                current.spinning = true;
+                current.winningIndex = winningIndex;
+                current.resultType = items[winningIndex].type;
+                current.spinId = spinId;
+                current.spinStartedAt = now;
+                return current;
+            });
+        }
+
+        function updateSharedTimer() {
+            if (isSpinning) {
+                spinStatusEl.innerText = "SPIN";
+                timerEl.innerText = "Spinning...";
+                return;
+            }
+
+            const now = Date.now();
+            let remaining = Math.ceil((nextSpinAt - now) / 1000);
+
+            if (remaining <= 0) {
+                remaining = 0;
+                spinStatusEl.innerText = "0s";
+                timerEl.innerText = "Next Spin: 0s";
+                tryStartSpin();
+            } else {
+                spinStatusEl.innerText = remaining + "s";
+                timerEl.innerText = `Next Spin: ${remaining}s`;
+            }
+        }
+
+        localTimerInterval = setInterval(updateSharedTimer, 250);
+
+        gameRef.once('value').then(snap => {
+            const data = snap.val() || {};
+            if (!data.nextSpinAt || data.nextSpinAt < Date.now()) {
+                const initAt = Date.now() + COUNTDOWN_SECONDS * 1000;
+                gameRef.update({
+                    nextSpinAt: initAt,
+                    round: data.round || 3305,
+                    forcedResult: data.forcedResult || 'auto'
+                });
+                nextSpinAt = initAt;
+            } else {
+                nextSpinAt = data.nextSpinAt;
+            }
+            updateSharedTimer();
+        });
+
+        setInterval(() => setOnline(true), 25000);
+        window.addEventListener('beforeunload', () => setOnline(false));
+    </script>
+</body>
+</html>
